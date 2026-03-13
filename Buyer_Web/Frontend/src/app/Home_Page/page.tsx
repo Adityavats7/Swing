@@ -64,6 +64,3 @@ const error =
     </main>
   );
 }
-
-
-
