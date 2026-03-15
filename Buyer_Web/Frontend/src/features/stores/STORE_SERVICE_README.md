@@ -89,7 +89,29 @@ Filtering logic lives inside the service:
 This keeps hooks and UI clean and focused.
 
 ---
+## Sorting & Pagination (Service Contract)
 
+- Input params (from `StoreSearchParams`):
+  - `sortBy`: `"RELEVANCE" | "DISTANCE" | "ETA" | "RATING" | "PRICE"`
+  - `sortDir`: `"ASC" | "DESC"` (default: `"DESC"` for `RATING`, otherwise `"ASC"`)
+  - `page`: 1‑based index (default: `1`)
+  - `pageSize`: per‑page count (default: `12`)
+
+- Processing order:
+  1) Filter → 2) Sort → 3) Paginate
+
+- Output (`PagedStoresResponse`):
+  - `stores`: items for the requested page
+  - `total`: total count after filters (before pagination)
+  - `page`, `pageSize`
+  - `hasMore`: `true` if more items remain
+
+- Notes:
+  - `RELEVANCE` currently acts as no-op in mock mode; real scoring can replace it.
+  - `PRICE` falls back to `Infinity` if no `featuredPrice` is present.
+  - This file is the only place that knows slice/sort details; UI and hooks remain stable.
+
+---
 ## Transition to Real Backend
 
 When backend APIs are ready, replace the mock implementation with:
