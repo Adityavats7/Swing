@@ -148,7 +148,30 @@ This separation allows:
 - Graceful degradation
 
 ---
+## Pagination & Sorting (Hook API)
 
+### Returned state
+- `stores: Store[]`
+- `loading: boolean`
+- `error: string | null`
+- `hasMore: boolean`
+- `page: number`
+- `pageSize: number`
+- `total: number`
+
+### Controls
+- `refresh(): void` — resets to page 1 with current params
+- `loadMore(): void` — fetches next page if `hasMore`
+
+### Params
+Accepts `StoreSearchParams` except `page`/`pageSize` (internal), plus optional `pageSize`.
+
+### Behavior
+- Resets list when any filter/sort param changes.
+- Applies service contract: filter → sort → paginate.
+- Stable API for UI; can be internally migrated to React Query later.
+
+---
 ## Transition to Advanced Data Libraries
 
 When the app grows, `useStores.ts` can be replaced or internally refactored to use:
