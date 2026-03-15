@@ -1,26 +1,13 @@
 
+/* ========= ENUMS & CONSTANT TYPES ========= */
 
-/* ---------------------------------
- * ENUMS & CONSTANT TYPES
- * --------------------------------- */
-
-/**
- * Store operational status
- */
+/** Operational status of a store */
 export type StoreOpenStatus = "OPEN" | "CLOSED" | "BUSY";
 
-/**
- * Inventory health indicator
- */
-export type StockStatus =
-  | "IN_STOCK"
-  | "LOW_STOCK"
-  | "OUT_OF_STOCK";
+/** Inventory health indicator (normalized) */
+export type StockStatus = "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
 
-/**
- * Store category/type
- * (extendable later)
- */
+/** High‑level store category (extend as needed) */
 export type StoreCategory =
   | "GROCERY"
   | "PHARMACY"
@@ -29,9 +16,7 @@ export type StoreCategory =
   | "ELECTRONICS"
   | "GENERAL";
 
-/**
- * Store service capabilities
- */
+/** Marketing/operational tags shown as badges */
 export type StoreServiceTag =
   | "FAST_DELIVERY"
   | "BEST_PRICE"
@@ -39,53 +24,41 @@ export type StoreServiceTag =
   | "ORGANIC"
   | "LOCAL_FAVORITE";
 
-/* ---------------------------------
- * VALUE OBJECTS
- * --------------------------------- */
+/* ========= VALUE OBJECTS ========= */
 
-/**
- * Geo location (for distance, maps, clustering)
- */
+/** Geo location for distance/map work */
 export type GeoLocation = {
   latitude: number;
   longitude: number;
 };
 
-/**
- * Delivery information
- */
+/** Delivery information */
 export type DeliveryInfo = {
-  etaMins: number;
-  distanceKm: number;
-  deliveryFee?: number;
-  freeDeliveryAbove?: number;
+  etaMins: number;          // minutes to deliver
+  distanceKm: number;       // km from user
+  deliveryFee?: number;     // INR
+  freeDeliveryAbove?: number; // INR threshold for free delivery
 };
 
-/**
- * Price preview for a highlighted product
- */
+/** Price preview for a highlighted/popular product */
 export type FeaturedPrice = {
-  price: number;
-  mrp?: number;
-  discountPercent?: number;
+  price: number;            // INR
+  mrp?: number;             // INR
+  discountPercent?: number; // computed server-side ideally
 };
 
-/**
- * Store rating summary
- */
+/** Aggregate rating */
 export type StoreRating = {
-  average: number;     // e.g. 4.5
-  totalRatings: number;
+  average: number;          // 0..5
+  totalRatings: number;     // count
 };
 
-/* ---------------------------------
- * CORE STORE ENTITY
- * --------------------------------- */
+/* ========= CORE ENTITY ========= */
 
 export type Store = {
-  /* Identity */
+  /* Identity & routing */
   id: string;
-  slug: string; // SEO & routing friendly (e.g. freshkart-sector-43)
+  slug: string; // SEO-friendly segment: e.g. "freshkart-sector-43"
 
   /* Display */
   name: string;
@@ -100,20 +73,20 @@ export type Store = {
   /* Location */
   location: GeoLocation;
 
-  /* Availability */
+  /* Availability & inventory */
   openStatus: StoreOpenStatus;
   stockStatus: StockStatus;
 
   /* Delivery */
   delivery: DeliveryInfo;
 
-  /* Pricing Preview */
+  /* Price preview */
   featuredPrice?: FeaturedPrice;
 
-  /* Ratings */
+  /* Rating */
   rating?: StoreRating;
 
-  /* Operational */
+  /* Operational flags */
   isVerified: boolean;
   isEnabled: boolean;
 
@@ -122,20 +95,30 @@ export type Store = {
   updatedAt: string; // ISO string
 };
 
-/* ---------------------------------
- * API RESPONSE TYPES
- * --------------------------------- */
-
+/* ========= LISTING / SEARCH CONTRACTS ========= */
 /**
- * Response for nearby stores API
+ * Sorting fields for store listings.
+ * NOTE: "RELEVANCE" is a placeholder for future search scoring integration.
  */
-export type NearbyStoresResponse = {
-  stores: Store[];
-  total: number;
+export type StoreSortBy =
+  | "RELEVANCE"
+  | "DISTANCE"   // delivery.distanceKm ASC
+  | "ETA"        // delivery.etaMins ASC
+  | "RATING"     // rating.average DESC (by default)
+  | "PRICE";     // featuredPrice.price ASC (fallback Infinity)
+
+/** Sort direction for explicit control (default depends on field) */
+export type SortDirection = "ASC" | "DESC";
+
+/** Page-based pagination (simple & SSR friendly). Switch to cursor later if needed. */
+export type PageParams = {
+  page?: number;       // 1-based; default set by service/hook
+  pageSize?: number;   // default set by service/hook (e.g., 12)
 };
 
 /**
- * Query parameters for store search
+ * Search/filter params accepted by listing endpoints.
+ * NOTE: extend safely — adding optional fields is backwards compatible.
  */
 export type StoreSearchParams = {
   query?: string;
@@ -143,15 +126,35 @@ export type StoreSearchParams = {
   maxDistanceKm?: number;
   openOnly?: boolean;
   tags?: StoreServiceTag[];
+
+  // Sorting (optional)
+  sortBy?: StoreSortBy;
+  sortDir?: SortDirection;
+} & PageParams;
+
+/** Paged response wrapper for listing UIs */
+export type PagedStoresResponse = {
+  stores: Store[];
+  total: number;      // total matching items (ignoring page)
+  page: number;       // 1-based
+  pageSize: number;   // number per page
+  hasMore: boolean;   // convenience flag for "Load more"
 };
 
-/* ---------------------------------
- * UI‑FRIENDLY DERIVED TYPES
- * --------------------------------- */
-
+/* ========= LEGACY/COMPAT RESPONSE (kept temporarily) ========= */
 /**
- * Lightweight store card view
- * (useful for lists, grids)
+ * Legacy shape used earlier. Keep it while migrating code paths that still expect it.
+ * You can remove this once all consumers switch to PagedStoresResponse.
+ */
+export type NearbyStoresResponse = {
+  stores: Store[];
+  total: number;
+};
+
+/* ========= UI-DERIVED TYPES ========= */
+/**
+ * Lightweight view for compact grids/cards.
+ * Use to tighten prop contracts on feature UI components if you like.
  */
 export type StoreCardView = Pick<
   Store,
@@ -167,10 +170,7 @@ export type StoreCardView = Pick<
   | "tags"
 >;
 
-/* ---------------------------------
- * ACTION TYPES (FOR FUTURE STATE MGMT)
- * --------------------------------- */
-
+/* ========= FUTURE ACTION TYPES (optional, for central state) ========= */
 export type StoreAction =
   | { type: "VIEW_STORE"; storeId: string }
   | { type: "ADD_TO_CART"; storeId: string }

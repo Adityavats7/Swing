@@ -164,7 +164,19 @@ function StoreCard({ name, eta }: any) {}
 UI must consume domain types, not redefine them.
 
 ---
+## Listing Contracts (Sorting & Pagination)
 
+- `StoreSortBy`: `"RELEVANCE" | "DISTANCE" | "ETA" | "RATING" | "PRICE"`
+- `SortDirection`: `"ASC" | "DESC"`
+- `PageParams`: `{ page?: number; pageSize?: number }`
+- `StoreSearchParams`: adds `sortBy`, `sortDir`, plus page params
+- `PagedStoresResponse`: `{ stores, total, page, pageSize, hasMore }`
+
+**Notes**
+- `RATING` defaults to **DESC** (higher first), others default to **ASC**.
+- Keep `NearbyStoresResponse` temporarily for backwards compatibility; migrate to `PagedStoresResponse` incrementally.
+
+---
 ## Relationship With Other Layers
 
 | Layer | Responsibility |
