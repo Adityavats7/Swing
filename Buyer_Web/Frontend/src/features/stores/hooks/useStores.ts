@@ -7,6 +7,7 @@ import { getNearbyStores } from "../store.service";
 export type UseStoresResult = {
   stores: Store[];
   loading: boolean;
+  isFetchingMore: boolean;
   error: string | null;
   hasMore: boolean;
   refresh: () => void;
@@ -20,77 +21,64 @@ export function useStores(
   params?: Omit<StoreSearchParams, "page" | "pageSize"> & { pageSize?: number }
 ): UseStoresResult {
   const [stores, setStores] = useState<Store[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState<number>(1);
-  const [pageSize] = useState<number>(Math.max(1, params?.pageSize ?? 12));
-  const [hasMore, setHasMore] = useState<boolean>(false);
-  const [total, setTotal] = useState<number>(0);
+  const [page, setPage] = useState(1);
+  const pageSize = Math.max(1, params?.pageSize ?? 12);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
 
-  const mountedRef = useRef<boolean>(false);
-  const lastParamsRef = useRef<string>("");
-  const signature = JSON.stringify({
-    query: params?.query ?? null,
-    category: params?.category ?? null,
-    maxDistanceKm: params?.maxDistanceKm ?? null,
-    openOnly: params?.openOnly ?? null,
-    tags: params?.tags ?? null,
-    sortBy: params?.sortBy ?? null,
-    sortDir: params?.sortDir ?? null,
-    pageSize,
-  });
+  const mountedRef = useRef(false);
+  const paramsKey = JSON.stringify(params ?? {});
 
   useEffect(() => {
     mountedRef.current = true;
-    lastParamsRef.current = signature;
-    void fetchPage(1);
+    fetchPage(1, true);
     return () => {
       mountedRef.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [paramsKey]);
 
-  useEffect(() => {
-    if (!mountedRef.current) return;
-    if (lastParamsRef.current !== signature) {
-      setStores([]);
-      setPage(1);
-      setHasMore(false);
-      setTotal(0);
-      lastParamsRef.current = signature;
-      void fetchPage(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature]);
+  async function fetchPage(nextPage: number, reset: boolean) {
+    if (reset) setLoading(true);
+    else setIsFetchingMore(true);
 
-  async function fetchPage(nextPage: number) {
-    setLoading(true);
     setError(null);
+
     try {
-      const res = await getNearbyStores({ ...(params ?? {}), page: nextPage, pageSize });
+      const res = await getNearbyStores({
+        ...(params ?? {}),
+        page: nextPage,
+        pageSize,
+      });
+
       if (!mountedRef.current) return;
+
       setPage(res.page);
-      setHasMore(res.hasMore);
       setTotal(res.total);
-      setStores((prev) => (nextPage === 1 ? res.stores : [...prev, ...res.stores]));
-    } catch (err) {
+      setHasMore(res.hasMore);
+      setStores((prev) => (reset ? res.stores : [...prev, ...res.stores]));
+    } catch {
       if (!mountedRef.current) return;
-      setError(err instanceof Error ? err.message : "Failed to load stores");
+      setError("Failed to load stores");
     } finally {
       if (!mountedRef.current) return;
       setLoading(false);
+      setIsFetchingMore(false);
     }
   }
 
-  const refresh = () => {
-    setStores([]);
-    void fetchPage(1);
+  return {
+    stores,
+    loading,
+    isFetchingMore,
+    error,
+    hasMore,
+    page,
+    pageSize,
+    total,
+    refresh: () => fetchPage(1, true),
+    loadMore: () => hasMore && fetchPage(page + 1, false),
   };
-
-  const loadMore = () => {
-    if (loading || !hasMore) return;
-    void fetchPage(page + 1);
-  };
-
-  return { stores, loading, error, hasMore, refresh, loadMore, page, pageSize, total };
 }
