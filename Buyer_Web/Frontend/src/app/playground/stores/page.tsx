@@ -1,5 +1,5 @@
 "use client";
-
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStores } from "@/features/stores/hooks/useStores";
 import { StoreCard } from "@/features/stores/components/StoreCard";
@@ -27,6 +27,7 @@ export default function StoresPlaygroundPage() {
   /* --------------------------------------------------
    * Input & control state
    * -------------------------------------------------- */
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [touched, setTouched] = useState(false);
   const [pageSizeInput, setPageSizeInput] = useState("6");
@@ -248,7 +249,9 @@ export default function StoresPlaygroundPage() {
               <StoreCard
                 key={store.id}
                 store={store}
-                onViewStore={(s) => alert(`View: ${s.name}`)}
+                onViewStore={(s) => {
+                  router.push(`/playground/stores/${s.slug}`);
+                }}
                 onQuickAdd={(s) => alert(`Quick add: ${s.name}`)}
               />
             ))}
@@ -275,8 +278,8 @@ export default function StoresPlaygroundPage() {
               {isFetchingMore
                 ? "Loading more…"
                 : hasMore
-                ? "Load more"
-                : "No more stores"}
+                  ? "Load more"
+                  : "No more stores"}
             </Button>
           </div>
         </>
